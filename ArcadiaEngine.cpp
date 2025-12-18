@@ -503,7 +503,8 @@ private:
         destroyTree(node->right);
         delete node;
     }
-ConcreteAuctionTree() {
+public:
+    ConcreteAuctionTree() {
         NIL = new Node(0, 0);
         NIL->color = BLACK;
         NIL->left = nullptr;
