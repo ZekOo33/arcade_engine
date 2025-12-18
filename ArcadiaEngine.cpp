@@ -103,31 +103,167 @@ public:
 
 // --- 2. Leaderboard (Skip List) ---
 
+// --- 2. Leaderboard (Skip List) ---
+
 class ConcreteLeaderboard : public Leaderboard {
 private:
-    // TODO: Define your skip list node structure and necessary variables
-    // Hint: You'll need nodes with multiple forward pointers
+    static const int MAX_LEVEL = 16;
+    
+    struct Node {
+        int playerID;
+        int score;
+        vector<Node*> forward;  // Forward pointers for each level
+        
+        Node(int id, int sc, int level) : playerID(id), score(sc) {
+            forward.resize(level + 1, nullptr);
+        }
+    };
+    
+    Node* head;
+    int maxLevel;  // Current maximum level in the skip list
+    
+    // Random level generator for skip list
+    int randomLevel() {
+        int level = 0;
+        while (rand() % 2 == 0 && level < MAX_LEVEL - 1) {
+            level++;
+        }
+        return level;
+    }
+    
+    // Comparison function: Returns true if node1 should come BEFORE node2
+    // Order: Higher score first, then lower ID for ties
+    bool shouldComeBefore(int score1, int id1, int score2, int id2) {
+        if (score1 != score2) {
+            return score1 > score2;  // Higher score comes first (descending)
+        }
+        return id1 < id2;  // For ties, lower ID comes first (ascending)
+    }
 
 public:
     ConcreteLeaderboard() {
-        // TODO: Initialize your skip list
+        maxLevel = 0;
+        // Create head node with dummy values (will always be smallest)
+        head = new Node(-1, -1, MAX_LEVEL);
+    }
+    
+    ~ConcreteLeaderboard() {
+        Node* current = head;
+        while (current != nullptr) {
+            Node* next = current->forward[0];
+            delete current;
+            current = next;
+        }
     }
 
     void addScore(int playerID, int score) override {
-        // TODO: Implement skip list insertion
-        // Remember to maintain descending order by score
+        vector<Node*> update(MAX_LEVEL, nullptr);
+        Node* current = head;
+        
+        // Find the insertion position and track update pointers
+        for (int i = maxLevel; i >= 0; i--) {
+            while (current->forward[i] != nullptr &&
+                   shouldComeBefore(current->forward[i]->score, 
+                                   current->forward[i]->playerID,
+                                   score, playerID)) {
+                current = current->forward[i];
+            }
+            update[i] = current;
+        }
+        
+        // Move to the next node (potential duplicate position)
+        current = current->forward[0];
+        
+        // Check if player already exists - if so, remove old entry first
+        if (current != nullptr && current->playerID == playerID) {
+            removePlayer(playerID);
+            // Re-find insertion position after removal
+            current = head;
+            for (int i = maxLevel; i >= 0; i--) {
+                while (current->forward[i] != nullptr &&
+                       shouldComeBefore(current->forward[i]->score, 
+                                       current->forward[i]->playerID,
+                                       score, playerID)) {
+                    current = current->forward[i];
+                }
+                update[i] = current;
+            }
+        }
+        
+        // Generate random level for new node
+        int newLevel = randomLevel();
+        
+        // If new level is greater than current max level, update head pointers
+        if (newLevel > maxLevel) {
+            for (int i = maxLevel + 1; i <= newLevel; i++) {
+                update[i] = head;
+            }
+            maxLevel = newLevel;
+        }
+        
+        // Create new node and insert it
+        Node* newNode = new Node(playerID, score, newLevel);
+        for (int i = 0; i <= newLevel; i++) {
+            newNode->forward[i] = update[i]->forward[i];
+            update[i]->forward[i] = newNode;
+        }
     }
 
     void removePlayer(int playerID) override {
-        // TODO: Implement skip list deletion
+        vector<Node*> update(MAX_LEVEL, nullptr);
+        Node* current = head;
+        
+        // Find the node to delete using linear scan at level 0
+        // Track update pointers at all levels
+        for (int i = maxLevel; i >= 0; i--) {
+            while (current->forward[i] != nullptr &&
+                   current->forward[i]->playerID != playerID &&
+                   (shouldComeBefore(current->forward[i]->score,
+                                    current->forward[i]->playerID,
+                                    INT_MIN, playerID) ||
+                    current->forward[i]->playerID < playerID)) {
+                current = current->forward[i];
+            }
+            update[i] = current;
+        }
+        
+        // Get the node to delete
+        current = current->forward[0];
+        
+        // If node found, delete it
+        if (current != nullptr && current->playerID == playerID) {
+            // Update forward pointers at all levels
+            for (int i = 0; i <= maxLevel; i++) {
+                if (update[i]->forward[i] != current) {
+                    break;
+                }
+                update[i]->forward[i] = current->forward[i];
+            }
+            
+            delete current;
+            
+            // Update max level if necessary
+            while (maxLevel > 0 && head->forward[maxLevel] == nullptr) {
+                maxLevel--;
+            }
+        }
     }
 
     vector<int> getTopN(int n) override {
-        // TODO: Return top N player IDs in descending score order
-        return {};
+        vector<int> result;
+        Node* current = head->forward[0];  // Start from first real node
+        
+        // Traverse the bottom level to get top N players
+        int count = 0;
+        while (current != nullptr && count < n) {
+            result.push_back(current->playerID);
+            current = current->forward[0];
+            count++;
+        }
+        
+        return result;
     }
 };
-
 // --- 3. AuctionTree (Red-Black Tree) ---
 
 class ConcreteAuctionTree : public AuctionTree {
