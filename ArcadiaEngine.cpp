@@ -945,9 +945,9 @@ int ServerKernel::minIntervals(vector<char>& tasks, int n) {
     // In that case, the answer is just the total number of tasks
     return max(intervals, (int)tasks.size());
 }
-// =========================================================
+// ========================================================
 // FACTORY FUNCTIONS (Required for Testing)
-// =========================================================
+// ========================================================
 
 extern "C" {
     PlayerTable* createPlayerTable() { 
