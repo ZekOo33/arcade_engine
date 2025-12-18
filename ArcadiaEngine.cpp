@@ -103,8 +103,6 @@ public:
 
 // --- 2. Leaderboard (Skip List) ---
 
-// --- 2. Leaderboard (Skip List) ---
-
 class ConcreteLeaderboard : public Leaderboard {
 private:
     static const int MAX_LEVEL = 16;
