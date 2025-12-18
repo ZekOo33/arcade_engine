@@ -706,26 +706,204 @@ long long InventorySystem::countStringPossibilities(string s) {
 // =========================================================
 
 bool WorldNavigator::pathExists(int n, vector<vector<int>>& edges, int source, int dest) {
-    // TODO: Implement path existence check using BFS or DFS
-    // edges are bidirectional
+    // Edge case: source equals destination
+    if (source == dest) {
+        return true;
+    }
+    
+    // Build adjacency list for bidirectional graph
+    vector<vector<int>> graph(n);
+    for (const auto& edge : edges) {
+        int u = edge[0];
+        int v = edge[1];
+        graph[u].push_back(v);
+        graph[v].push_back(u);  // Bidirectional
+    }
+    
+    // BFS to find path from source to dest
+    vector<bool> visited(n, false);
+    queue<int> q;
+    
+    q.push(source);
+    visited[source] = true;
+    
+    while (!q.empty()) {
+        int current = q.front();
+        q.pop();
+        
+        // Check if we reached destination
+        if (current == dest) {
+            return true;
+        }
+        
+        // Visit all neighbors
+        for (int neighbor : graph[current]) {
+            if (!visited[neighbor]) {
+                visited[neighbor] = true;
+                q.push(neighbor);
+            }
+        }
+    }
+    
+    // No path found
     return false;
 }
 
 long long WorldNavigator::minBribeCost(int n, int m, long long goldRate, long long silverRate,
                                        vector<vector<int>>& roadData) {
-    // TODO: Implement Minimum Spanning Tree (Kruskal's or Prim's)
-    // roadData[i] = {u, v, goldCost, silverCost}
-    // Total cost = goldCost * goldRate + silverCost * silverRate
-    // Return -1 if graph cannot be fully connected
-    return -1;
+    // Edge case: if only 1 city, no roads needed
+    if (n == 1) {
+        return 0;
+    }
+    
+    // Structure to hold edge information
+    struct Edge {
+        int u, v;
+        long long cost;
+        
+        bool operator<(const Edge& other) const {
+            return cost < other.cost;
+        }
+    };
+    
+    // Calculate cost for each road and store edges
+    vector<Edge> edges;
+    for (const auto& road : roadData) {
+        int u = road[0];
+        int v = road[1];
+        long long goldCost = road[2];
+        long long silverCost = road[3];
+        
+        // Total cost = goldCost * goldRate + silverCost * silverRate
+        long long totalCost = goldCost * goldRate + silverCost * silverRate;
+        
+        edges.push_back({u, v, totalCost});
+    }
+    
+    // Sort edges by cost (for Kruskal's algorithm)
+    sort(edges.begin(), edges.end());
+    
+    // Union-Find data structure
+    vector<int> parent(n);
+    vector<int> rank(n, 0);
+    
+    // Initialize: each node is its own parent
+    for (int i = 0; i < n; i++) {
+        parent[i] = i;
+    }
+    
+    // Find with path compression
+    function<int(int)> find = [&](int x) -> int {
+        if (parent[x] != x) {
+            parent[x] = find(parent[x]);  // Path compression
+        }
+        return parent[x];
+    };
+    
+    // Union by rank
+    auto unionSets = [&](int x, int y) -> bool {
+        int rootX = find(x);
+        int rootY = find(y);
+        
+        if (rootX == rootY) {
+            return false;  // Already in same set (would create cycle)
+        }
+        
+        // Union by rank
+        if (rank[rootX] < rank[rootY]) {
+            parent[rootX] = rootY;
+        } else if (rank[rootX] > rank[rootY]) {
+            parent[rootY] = rootX;
+        } else {
+            parent[rootY] = rootX;
+            rank[rootX]++;
+        }
+        
+        return true;
+    };
+    
+    // Kruskal's algorithm: add edges in increasing cost order
+    long long totalCost = 0;
+    int edgesAdded = 0;
+    
+    for (const auto& edge : edges) {
+        if (unionSets(edge.u, edge.v)) {
+            totalCost += edge.cost;
+            edgesAdded++;
+            
+            // MST of n nodes has exactly n-1 edges
+            if (edgesAdded == n - 1) {
+                break;
+            }
+        }
+    }
+    
+    // Check if we connected all nodes
+    if (edgesAdded != n - 1) {
+        return -1;  // Graph cannot be fully connected
+    }
+    
+    return totalCost;
 }
 
 string WorldNavigator::sumMinDistancesBinary(int n, vector<vector<int>>& roads) {
-    // TODO: Implement All-Pairs Shortest Path (Floyd-Warshall)
-    // Sum all shortest distances between unique pairs (i < j)
-    // Return the sum as a binary string
-    // Hint: Handle large numbers carefully
-    return "0";
+    const long long INF = 1e18;  // Use large value for infinity
+    
+    // Initialize distance matrix
+    vector<vector<long long>> dist(n, vector<long long>(n, INF));
+    
+    // Distance from a node to itself is 0
+    for (int i = 0; i < n; i++) {
+        dist[i][i] = 0;
+    }
+    
+    // Fill in the direct edges (bidirectional)
+    for (const auto& road : roads) {
+        int u = road[0];
+        int v = road[1];
+        long long weight = road[2];
+        
+        dist[u][v] = min(dist[u][v], weight);
+        dist[v][u] = min(dist[v][u], weight);  // Bidirectional
+    }
+    
+    // Floyd-Warshall algorithm
+    for (int k = 0; k < n; k++) {
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                if (dist[i][k] != INF && dist[k][j] != INF) {
+                    dist[i][j] = min(dist[i][j], dist[i][k] + dist[k][j]);
+                }
+            }
+        }
+    }
+    
+    // Calculate sum of all shortest distances for unique pairs (i < j)
+    long long totalSum = 0;
+    for (int i = 0; i < n; i++) {
+        for (int j = i + 1; j < n; j++) {
+            if (dist[i][j] != INF) {
+                totalSum += dist[i][j];
+            }
+            // If distance is still INF, nodes are disconnected
+            // The problem examples suggest treating this as a specific distance
+        }
+    }
+    
+    // Convert sum to binary string
+    if (totalSum == 0) {
+        return "0";
+    }
+    
+    string binary = "";
+    long long num = totalSum;
+    
+    while (num > 0) {
+        binary = (char)('0' + (num % 2)) + binary;
+        num /= 2;
+    }
+    
+    return binary;
 }
 
 // =========================================================
