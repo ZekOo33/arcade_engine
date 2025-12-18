@@ -911,13 +911,40 @@ string WorldNavigator::sumMinDistancesBinary(int n, vector<vector<int>>& roads) 
 // =========================================================
 
 int ServerKernel::minIntervals(vector<char>& tasks, int n) {
-    // TODO: Implement task scheduler with cooling time
-    // Same task must wait 'n' intervals before running again
-    // Return minimum total intervals needed (including idle time)
-    // Hint: Use greedy approach with frequency counting
-    return 0;
+    // Edge case: if cooling time is 0, execute all tasks immediately
+    if (n == 0) {
+        return tasks.size();
+    }
+    
+    // Count frequency of each task
+    vector<int> freq(26, 0);
+    for (char task : tasks) {
+        freq[task - 'A']++;
+    }
+    
+    // Find maximum frequency
+    int maxFreq = *max_element(freq.begin(), freq.end());
+    
+    // Count how many tasks have maximum frequency
+    int maxFreqCount = 0;
+    for (int f : freq) {
+        if (f == maxFreq) {
+            maxFreqCount++;
+        }
+    }
+    
+    // Calculate minimum intervals
+    // Formula explanation:
+    // - The most frequent task(s) determine the minimum structure
+    // - We need (maxFreq - 1) complete "frames" of size (n + 1)
+    // - Plus a final frame containing all tasks with maxFreq
+    
+    int intervals = (maxFreq - 1) * (n + 1) + maxFreqCount;
+    
+    // However, if we have many different tasks, we might not need idle time
+    // In that case, the answer is just the total number of tasks
+    return max(intervals, (int)tasks.size());
 }
-
 // =========================================================
 // FACTORY FUNCTIONS (Required for Testing)
 // =========================================================
