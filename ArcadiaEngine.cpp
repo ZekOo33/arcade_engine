@@ -604,27 +604,103 @@ public:
 // =========================================================
 
 int InventorySystem::optimizeLootSplit(int n, vector<int>& coins) {
-    // TODO: Implement partition problem using DP
-    // Goal: Minimize |sum(subset1) - sum(subset2)|
-    // Hint: Use subset sum DP to find closest sum to total/2
-    return 0;
+    // Calculate total sum
+    int totalSum = 0;
+    for (int i = 0; i < n; i++) {
+        totalSum += coins[i];
+    }
+    
+    // Target is half of total (we want to get as close as possible)
+    int target = totalSum / 2;
+    
+    // DP array: dp[i] = true if sum i is achievable
+    vector<bool> dp(target + 1, false);
+    dp[0] = true;  // Sum of 0 is always achievable (empty subset)
+    
+    // For each coin
+    for (int i = 0; i < n; i++) {
+        // Traverse from right to left to avoid using same coin twice
+        for (int j = target; j >= coins[i]; j--) {
+            if (dp[j - coins[i]]) {
+                dp[j] = true;
+            }
+        }
+    }
+    
+    // Find the largest sum <= target that is achievable
+    int subset1Sum = 0;
+    for (int i = target; i >= 0; i--) {
+        if (dp[i]) {
+            subset1Sum = i;
+            break;
+        }
+    }
+    
+    // The other subset has sum (totalSum - subset1Sum)
+    int subset2Sum = totalSum - subset1Sum;
+    
+    // Return the absolute difference
+    return abs(subset1Sum - subset2Sum);
 }
 
 int InventorySystem::maximizeCarryValue(int capacity, vector<pair<int, int>>& items) {
-    // TODO: Implement 0/1 Knapsack using DP
-    // items = {weight, value} pairs
-    // Return maximum value achievable within capacity
-    return 0;
+    int n = items.size();
+    
+    // Handle edge case
+    if (n == 0 || capacity == 0) {
+        return 0;
+    }
+    
+    // DP table: dp[i][w] = max value using first i items with capacity w
+    // Space optimization: use 1D array
+    vector<int> dp(capacity + 1, 0);
+    
+    // For each item
+    for (int i = 0; i < n; i++) {
+        int weight = items[i].first;
+        int value = items[i].second;
+        
+        // Traverse from right to left to avoid using same item twice
+        for (int w = capacity; w >= weight; w--) {
+            // Choice: take item i or don't take it
+            dp[w] = max(dp[w], dp[w - weight] + value);
+        }
+    }
+    
+    return dp[capacity];
 }
 
 long long InventorySystem::countStringPossibilities(string s) {
-    // TODO: Implement string decoding DP
-    // Rules: "uu" can be decoded as "w" or "uu"
-    //        "nn" can be decoded as "m" or "nn"
-    // Count total possible decodings
-    return 0;
+    const long long MOD = 1000000007;
+    int n = s.length();
+    
+    // Handle edge case
+    if (n == 0) {
+        return 1;
+    }
+    
+    // DP array: dp[i] = number of ways to decode s[0...i-1]
+    vector<long long> dp(n + 1, 0);
+    dp[0] = 1;  // Empty string has 1 way
+    
+    for (int i = 1; i <= n; i++) {
+        // Option 1: Take current character as-is (always valid)
+        dp[i] = dp[i - 1];
+        
+        // Option 2: Check if we can form a substitution pair
+        if (i >= 2) {
+            string pair = s.substr(i - 2, 2);
+            
+            // Check if last two characters form "uu" or "nn"
+            if (pair == "uu" || pair == "nn") {
+                // We can decode this pair as a single character (w or m)
+                dp[i] = (dp[i] + dp[i - 2]) % MOD;
+            }
+        }
+    }
+    
+    return dp[n];
 }
-
 // =========================================================
 // PART C: WORLD NAVIGATOR (Graphs)
 // =========================================================
