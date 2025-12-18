@@ -266,25 +266,338 @@ public:
 
 class ConcreteAuctionTree : public AuctionTree {
 private:
-    // TODO: Define your Red-Black Tree node structure
-    // Hint: Each node needs: id, price, color, left, right, parent pointers
-
-public:
-    ConcreteAuctionTree() {
-        // TODO: Initialize your Red-Black Tree
+      enum Color { RED, BLACK };
+    
+    struct Node {
+        int itemID;
+        int price;
+        Color color;
+        Node* left;
+        Node* right;
+        Node* parent;
+        
+        Node(int id, int p) : itemID(id), price(p), color(RED), 
+                               left(nullptr), right(nullptr), parent(nullptr) {}
+    };
+    
+    Node* root;
+    Node* NIL;  // Sentinel node for leaf nodes
+    
+    // Helper: Compare nodes (price ascending, then ID ascending for ties)
+    bool isLessThan(Node* a, int priceB, int idB) {
+        if (a->price != priceB) {
+            return a->price < priceB;
+        }
+        return a->itemID < idB;
+    }
+    
+    bool isLessThan(Node* a, Node* b) {
+        return isLessThan(a, b->price, b->itemID);
+    }
+    
+    // Rotations
+    void leftRotate(Node* x) {
+        Node* y = x->right;
+        x->right = y->left;
+        
+        if (y->left != NIL) {
+            y->left->parent = x;
+        }
+        
+        y->parent = x->parent;
+        
+        if (x->parent == nullptr) {
+            root = y;
+        } else if (x == x->parent->left) {
+            x->parent->left = y;
+        } else {
+            x->parent->right = y;
+        }
+        
+        y->left = x;
+        x->parent = y;
+    }
+    
+    void rightRotate(Node* x) {
+        Node* y = x->left;
+        x->left = y->right;
+        
+        if (y->right != NIL) {
+            y->right->parent = x;
+        }
+        
+        y->parent = x->parent;
+        
+        if (x->parent == nullptr) {
+            root = y;
+        } else if (x == x->parent->right) {
+            x->parent->right = y;
+        } else {
+            x->parent->left = y;
+        }
+        
+        y->right = x;
+        x->parent = y;
+    }
+    
+    // Insert fixup
+    void insertFixup(Node* z) {
+        while (z->parent != nullptr && z->parent->color == RED) {
+            if (z->parent == z->parent->parent->left) {
+                Node* y = z->parent->parent->right;  // Uncle
+                
+                if (y->color == RED) {
+                    // Case 1: Uncle is red
+                    z->parent->color = BLACK;
+                    y->color = BLACK;
+                    z->parent->parent->color = RED;
+                    z = z->parent->parent;
+                } else {
+                    if (z == z->parent->right) {
+                        // Case 2: z is right child
+                        z = z->parent;
+                        leftRotate(z);
+                    }
+                    // Case 3: z is left child
+                    z->parent->color = BLACK;
+                    z->parent->parent->color = RED;
+                    rightRotate(z->parent->parent);
+                }
+            } else {
+                Node* y = z->parent->parent->left;  // Uncle
+                
+                if (y->color == RED) {
+                    // Case 1: Uncle is red
+                    z->parent->color = BLACK;
+                    y->color = BLACK;
+                    z->parent->parent->color = RED;
+                    z = z->parent->parent;
+                } else {
+                    if (z == z->parent->left) {
+                        // Case 2: z is left child
+                        z = z->parent;
+                        rightRotate(z);
+                    }
+                    // Case 3: z is right child
+                    z->parent->color = BLACK;
+                    z->parent->parent->color = RED;
+                    leftRotate(z->parent->parent);
+                }
+            }
+        }
+        root->color = BLACK;
+    }
+    
+    // Transplant helper for deletion
+    void transplant(Node* u, Node* v) {
+        if (u->parent == nullptr) {
+            root = v;
+        } else if (u == u->parent->left) {
+            u->parent->left = v;
+        } else {
+            u->parent->right = v;
+        }
+        v->parent = u->parent;
+    }
+    
+    // Find minimum node in subtree
+    Node* minimum(Node* node) {
+        while (node->left != NIL) {
+            node = node->left;
+        }
+        return node;
+    }
+    
+    // Delete fixup
+    void deleteFixup(Node* x) {
+        while (x != root && x->color == BLACK) {
+            if (x == x->parent->left) {
+                Node* w = x->parent->right;  // Sibling
+                
+                if (w->color == RED) {
+                    // Case 1: Sibling is red
+                    w->color = BLACK;
+                    x->parent->color = RED;
+                    leftRotate(x->parent);
+                    w = x->parent->right;
+                }
+                
+                if (w->left->color == BLACK && w->right->color == BLACK) {
+                    // Case 2: Sibling's children are both black
+                    w->color = RED;
+                    x = x->parent;
+                } else {
+                    if (w->right->color == BLACK) {
+                        // Case 3: Sibling's right child is black
+                        w->left->color = BLACK;
+                        w->color = RED;
+                        rightRotate(w);
+                        w = x->parent->right;
+                    }
+                    // Case 4: Sibling's right child is red
+                    w->color = x->parent->color;
+                    x->parent->color = BLACK;
+                    w->right->color = BLACK;
+                    leftRotate(x->parent);
+                    x = root;
+                }
+            } else {
+                Node* w = x->parent->left;  // Sibling
+                
+                if (w->color == RED) {
+                    // Case 1: Sibling is red
+                    w->color = BLACK;
+                    x->parent->color = RED;
+                    rightRotate(x->parent);
+                    w = x->parent->left;
+                }
+                
+                if (w->right->color == BLACK && w->left->color == BLACK) {
+                    // Case 2: Sibling's children are both black
+                    w->color = RED;
+                    x = x->parent;
+                } else {
+                    if (w->left->color == BLACK) {
+                        // Case 3: Sibling's left child is black
+                        w->right->color = BLACK;
+                        w->color = RED;
+                        leftRotate(w);
+                        w = x->parent->left;
+                    }
+                    // Case 4: Sibling's left child is red
+                    w->color = x->parent->color;
+                    x->parent->color = BLACK;
+                    w->left->color = BLACK;
+                    rightRotate(x->parent);
+                    x = root;
+                }
+            }
+        }
+        x->color = BLACK;
+    }
+    
+    // O(N) search for node by itemID
+    Node* findByID(Node* node, int itemID) {
+        if (node == NIL) {
+            return nullptr;
+        }
+        
+        if (node->itemID == itemID) {
+            return node;
+        }
+        
+        Node* leftResult = findByID(node->left, itemID);
+        if (leftResult != nullptr) {
+            return leftResult;
+        }
+        
+        return findByID(node->right, itemID);
+    }
+    
+    // Cleanup helper
+    void destroyTree(Node* node) {
+        if (node == NIL) {
+            return;
+        }
+        destroyTree(node->left);
+        destroyTree(node->right);
+        delete node;
+    }
+ConcreteAuctionTree() {
+        NIL = new Node(0, 0);
+        NIL->color = BLACK;
+        NIL->left = nullptr;
+        NIL->right = nullptr;
+        NIL->parent = nullptr;
+        root = NIL;
+    }
+    
+    ~ConcreteAuctionTree() {
+        destroyTree(root);
+        delete NIL;
     }
 
     void insertItem(int itemID, int price) override {
-        // TODO: Implement Red-Black Tree insertion
-        // Remember to maintain RB-Tree properties with rotations and recoloring
+        Node* z = new Node(itemID, price);
+        z->left = NIL;
+        z->right = NIL;
+        
+        Node* y = nullptr;
+        Node* x = root;
+        
+        // Standard BST insertion with composite key comparison
+        while (x != NIL) {
+            y = x;
+            if (isLessThan(z, x)) {
+                x = x->left;
+            } else {
+                x = x->right;
+            }
+        }
+        
+        z->parent = y;
+        
+        if (y == nullptr) {
+            root = z;
+        } else if (isLessThan(z, y)) {
+            y->left = z;
+        } else {
+            y->right = z;
+        }
+        
+        // New node starts as red
+        z->color = RED;
+        
+        // Fix Red-Black properties
+        insertFixup(z);
     }
 
     void deleteItem(int itemID) override {
-        // TODO: Implement Red-Black Tree deletion
-        // This is complex - handle all cases carefully
+        // O(N) search for the node by itemID
+        Node* z = findByID(root, itemID);
+        
+        if (z == nullptr) {
+            return;  // Item not found
+        }
+        
+        // Standard Red-Black Tree deletion
+        Node* y = z;
+        Node* x;
+        Color yOriginalColor = y->color;
+        
+        if (z->left == NIL) {
+            x = z->right;
+            transplant(z, z->right);
+        } else if (z->right == NIL) {
+            x = z->left;
+            transplant(z, z->left);
+        } else {
+            y = minimum(z->right);
+            yOriginalColor = y->color;
+            x = y->right;
+            
+            if (y->parent == z) {
+                x->parent = y;
+            } else {
+                transplant(y, y->right);
+                y->right = z->right;
+                y->right->parent = y;
+            }
+            
+            transplant(z, y);
+            y->left = z->left;
+            y->left->parent = y;
+            y->color = z->color;
+        }
+        
+        delete z;
+        
+        // Fix Red-Black properties if needed
+        if (yOriginalColor == BLACK) {
+            deleteFixup(x);
+        }
     }
 };
-
 // =========================================================
 // PART B: INVENTORY SYSTEM (Dynamic Programming)
 // =========================================================
